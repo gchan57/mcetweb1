@@ -1,9 +1,10 @@
+
 import React, { useEffect, useState } from "react";
 import { ref, onValue } from "firebase/database";
 import { db } from "./firebase";
 import GaugeComponent from "react-gauge-component";
 import LiquidGauge from "react-liquid-gauge";
-import { Gauge, Thermometer, Drop, Download } from "phosphor-react";
+import { Gauge, Thermometer, Drop, Download, ArrowUp, ArrowDown, Minus } from "phosphor-react";
 import {
   LineChart,
   Line,
@@ -23,8 +24,15 @@ export default function Dashboard() {
   const [maxFlow, setMaxFlow] = useState(60);
   const [alerts, setAlerts] = useState([]);
 
+  // Store previous values for trend calculation
+  const [prevValues, setPrevValues] = useState({
+    temp: 0,
+    level: 0,
+    flow: 0,
+  });
+
   const speak = (text) => {
-    if ('speechSynthesis' in window) {
+    if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(text);
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
@@ -38,7 +46,8 @@ export default function Dashboard() {
       setData(fresh);
 
       const levelRaw = fresh.string || "";
-      const levelParsed = parseFloat(levelRaw.toString().replace(/[^\d.]/g, "")) || 0;
+      const levelParsed =
+        parseFloat(levelRaw.toString().replace(/[^\d.]/g, "")) || 0;
       const levelValue = Math.min(levelParsed, 100);
 
       const now = new Date();
@@ -62,14 +71,49 @@ export default function Dashboard() {
   const flowValue = parseFloat(data.flowread) || 0;
   const tempValue = parseFloat(data.temp) || 0;
 
+  // Calculate trend direction
+  const getTrend = (current, previous) => {
+    if (current > previous) return "up";
+    if (current < previous) return "down";
+    return "stable";
+  };
+
+  const tempTrend = getTrend(tempValue, prevValues.temp);
+  const levelTrend = getTrend(levelValue, prevValues.level);
+  const flowTrend = getTrend(flowValue, prevValues.flow);
+
+  // Update previous values for next calculation
+  useEffect(() => {
+    setPrevValues({
+      temp: tempValue,
+      level: levelValue,
+      flow: flowValue,
+    });
+  }, [tempValue, levelValue, flowValue]);
+
+  // Coolant health index (simple formula for demo)
+  const coolantHealth = Math.max(
+    0,
+    100 -
+      (Math.abs(tempValue - 25) * 2 +
+        (maxLevel - levelValue) * 0.8 +
+        Math.max(0, flowValue - maxFlow) * 1.5)
+  ).toFixed(0);
+
   useEffect(() => {
     const newAlerts = [];
     if (levelValue < maxLevel)
-      newAlerts.push(`Coolant level below threshold (${levelValue}% < ${maxLevel}%)`);
+      newAlerts.push(
+        `Coolant level below threshold (${levelValue}% < ${maxLevel}%)`
+      );
     if (tempValue > maxTemp)
-      newAlerts.push(`Temperature exceeded threshold (${tempValue}°C > ${maxTemp}°C)`);
+      newAlerts.push(
+        `Temperature exceeded threshold (${tempValue}°C > ${maxTemp}°C)`
+      );
     if (flowValue > maxFlow)
-      newAlerts.push(`Flow rate exceeded threshold (${flowValue}L/min > ${maxFlow}L/min)`);
+      newAlerts.push(
+        `Flow rate exceeded threshold (${flowValue}L/min > ${maxFlow}L/min)`
+      );
     setAlerts(newAlerts);
 
     if (newAlerts.length > 0) {
@@ -83,18 +127,23 @@ export default function Dashboard() {
       alert("No data available to download yet. Please wait for data to load.");
       return;
     }
-    const headers = "Time,Temperature (°C),Coolant Level (%),Flow Rate (L/min)\n";
+    const headers =
+      "Time,Temperature (°C),Coolant Level (%),Flow Rate (L/min)\n";
     const csvContent =
       headers +
       latestData
         .map((row) => `"${row.time}",${row.temp},${row.level},${row.flow}`)
         .join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `sensor_data_last_100_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `sensor_data_last_100_${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     setTimeout(() => {
@@ -120,7 +169,7 @@ export default function Dashboard() {
     </div>
   );
 
-  const MetricCard = ({ icon, children }) => (
+  const MetricCard = ({ icon, trend, children }) => (
     <div
       style={{
         background: "#fff",
@@ -131,9 +180,15 @@ export default function Dashboard() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        position: "relative",
       }}
     >
-      <div style={{ marginBottom: 10 }}>{icon}</div>
+      <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+        {icon}
+        {trend === "up" && <ArrowUp color="red" />}
+        {trend === "down" && <ArrowDown color="green" />}
+        {trend === "stable" && <Minus color="gray" />}
+      </div>
       {children}
     </div>
   );
@@ -187,6 +242,7 @@ export default function Dashboard() {
         overflow: "hidden",
       }}
     >
+      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -195,14 +251,30 @@ export default function Dashboard() {
           padding: "20px 20px 0",
         }}
       >
-        <div
-          style={{
-            fontSize: "1.5rem",
-            fontWeight: 800,
-            color: "#006400",
-          }}
-        >
-          Coolant Dashboard
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: 800,
+              color: "#006400",
+            }}
+          >
+            Coolant Dashboard
+          </div>
+          <div
+            style={{
+              fontSize: "0.9rem",
+              fontWeight: 600,
+              color:
+                coolantHealth > 70
+                  ? "green"
+                  : coolantHealth > 40
+                  ? "orange"
+                  : "red",
+            }}
+          >
+            Health Index: {coolantHealth}%
+          </div>
         </div>
         <button
           onClick={downloadCSV}
@@ -220,10 +292,11 @@ export default function Dashboard() {
           }}
         >
           <Download size={18} />
-          Export  Reads
+          Export Reads
         </button>
       </div>
 
+      {/* Main Content */}
       <div
         style={{
           display: "flex",
@@ -234,6 +307,7 @@ export default function Dashboard() {
           height: "calc(100vh - 80px)",
         }}
       >
+        {/* Left Panel */}
         <div
           style={{
             flex: 1,
@@ -293,6 +367,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Right Panel */}
         <div
           style={{
             flex: 3,
@@ -302,16 +377,9 @@ export default function Dashboard() {
             minWidth: 600,
           }}
         >
-          {/* Temperature Section */}
-          <div
-            style={{
-              display: "flex",
-              gap: 20,
-              height: "33%",
-              minHeight: 200,
-            }}
-          >
-            <MetricCard icon={<Thermometer size={28} />}>
+          {/* Temperature */}
+          <div style={{ display: "flex", gap: 20, height: "33%", minHeight: 200 }}>
+            <MetricCard icon={<Thermometer size={28} />} trend={tempTrend}>
               <GaugeComponent
                 type="semicircle"
                 minValue={0}
@@ -339,16 +407,9 @@ export default function Dashboard() {
             <GraphCard title="Temperature" valueKey="temp" color="#e28c1e" />
           </div>
 
-          {/* Water Level Section */}
-          <div
-            style={{
-              display: "flex",
-              gap: 20,
-              height: "33%",
-              minHeight: 200,
-            }}
-          >
-            <MetricCard icon={<Drop size={28} />}>
+          {/* Level */}
+          <div style={{ display: "flex", gap: 20, height: "33%", minHeight: 200 }}>
+            <MetricCard icon={<Drop size={28} />} trend={levelTrend}>
               <LiquidGauge
                 value={levelValue}
                 min={0}
@@ -368,16 +429,9 @@ export default function Dashboard() {
             <GraphCard title="Coolant Level" valueKey="level" color="#2bcf85" />
           </div>
 
-          {/* Flow Rate Section */}
-          <div
-            style={{
-              display: "flex",
-              gap: 20,
-              height: "33%",
-              minHeight: 200,
-            }}
-          >
-            <MetricCard icon={<Gauge size={28} />}>
+          {/* Flow */}
+          <div style={{ display: "flex", gap: 20, height: "33%", minHeight: 200 }}>
+            <MetricCard icon={<Gauge size={28} />} trend={flowTrend}>
               <GaugeComponent
                 type="semicircle"
                 minValue={0}
