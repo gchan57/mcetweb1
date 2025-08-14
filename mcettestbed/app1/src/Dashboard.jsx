@@ -15,6 +15,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import "./Dashboard.css";
+import AIAnalysis from "./AIAnalysis";
 
 export default function Dashboard() {
   const [data, setData] = useState({});
@@ -153,37 +155,24 @@ export default function Dashboard() {
   };
 
   const ThresholdSlider = ({ label, value, setValue, max, unit }) => (
-    <div style={{ background: "#fff", padding: 12, borderRadius: 8, width: "100%" }}>
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+    <div className="threshold-slider">
+      <div className="label">{label}</div>
       <input
         type="range"
         min={0}
         max={max}
         value={value}
         onChange={(e) => setValue(Number(e.target.value))}
-        style={{ width: "100%" }}
       />
-      <div style={{ fontWeight: 700, color: "#006400", marginTop: 4 }}>
+      <div className="value">
         {value} {unit}
       </div>
     </div>
   );
 
   const MetricCard = ({ icon, trend, children }) => (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: 10,
-        padding: 14,
-        flex: 1,
-        minWidth: 240,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        position: "relative",
-      }}
-    >
-      <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+    <div className="metric-card">
+      <div className="metric-card-header">
         {icon}
         {trend === "up" && <ArrowUp color="red" />}
         {trend === "down" && <ArrowDown color="green" />}
@@ -194,27 +183,18 @@ export default function Dashboard() {
   );
 
   const GraphCard = ({ title, valueKey, color }) => (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: 10,
-        padding: 10,
-        flex: 2,
-        minWidth: 300,
-        height: "100%",
-      }}
-    >
-      <div style={{ fontWeight: 600, marginBottom: 6 }}>{title}</div>
-      <div style={{ height: "calc(100% - 30px)" }}>
+    <div className="graph-card">
+      <div className="graph-card-title">{title}</div>
+      <div className="graph-container">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={history}>
-            <CartesianGrid stroke="#eee" />
+            <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="time"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 12 }}
               interval={Math.floor(history.length / 5)}
             />
-            <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 12 }} />
             <Tooltip />
             <Legend />
             <Line
@@ -231,93 +211,35 @@ export default function Dashboard() {
   );
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        width: "100vw",
-        background: "#f9fafb",
-        fontFamily: "sans-serif",
-        overflow: "hidden",
-      }}
-    >
+    <div className="dashboard">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "20px 20px 0",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column" }}>
+      <div className="header">
+        <div>
+          <div className="header-title">Coolant Dashboard</div>
           <div
+            className="health-index"
             style={{
-              fontSize: "1.5rem",
-              fontWeight: 800,
-              color: "#006400",
-            }}
-          >
-            Coolant Dashboard
-          </div>
-          <div
-            style={{
-              fontSize: "0.9rem",
-              fontWeight: 600,
               color:
                 coolantHealth > 70
-                  ? "green"
+                  ? "#28a745"
                   : coolantHealth > 40
-                  ? "orange"
-                  : "red",
+                  ? "#ffc107"
+                  : "#dc3545",
             }}
           >
             Health Index: {coolantHealth}%
           </div>
         </div>
-        <button
-          onClick={downloadCSV}
-          style={{
-            background: "#006400",
-            color: "white",
-            border: "none",
-            padding: "8px 16px",
-            borderRadius: "4px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            cursor: "pointer",
-            fontWeight: "600",
-          }}
-        >
+        <button onClick={downloadCSV} className="export-button">
           <Download size={18} />
           Export Reads
         </button>
       </div>
 
       {/* Main Content */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 20,
-          padding: 20,
-          overflow: "auto",
-          height: "calc(100vh - 80px)",
-        }}
-      >
+      <div className="main-content">
         {/* Left Panel */}
-        <div
-          style={{
-            flex: 1,
-            minWidth: 300,
-            maxWidth: 400,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
+        <div className="left-panel">
           <ThresholdSlider
             label="Min Coolant Level Threshold"
             value={maxLevel}
@@ -340,88 +262,63 @@ export default function Dashboard() {
             unit="L/min"
           />
 
-          <div
-            style={{
-              flex: 1,
-              overflow: "auto",
-              minHeight: 100,
-              maxHeight: 300,
-            }}
-          >
+          <div className="alerts-container">
             {alerts.map((alert, idx) => (
-              <div
-                key={idx}
-                style={{
-                  background: "#ffe8e8",
-                  color: "#b00020",
-                  fontWeight: 700,
-                  fontSize: "0.9rem",
-                  padding: 10,
-                  borderRadius: 8,
-                  marginBottom: 8,
-                }}
-              >
+              <div key={idx} className="alert">
                 {alert}
               </div>
             ))}
           </div>
+          <AIAnalysis history={history} />
         </div>
 
         {/* Right Panel */}
-        <div
-          style={{
-            flex: 3,
-            display: "flex",
-            flexDirection: "column",
-            gap: 20,
-            minWidth: 600,
-          }}
-        >
+        <div className="right-panel">
           {/* Temperature */}
-          <div style={{ display: "flex", gap: 20, height: "33%", minHeight: 200 }}>
-            <MetricCard icon={<Thermometer size={28} />} trend={tempTrend}>
+          <div className="metric-row">
+            <MetricCard icon={<Thermometer size={32} />} trend={tempTrend}>
               <GaugeComponent
                 type="semicircle"
                 minValue={0}
                 maxValue={50}
                 value={tempValue}
-                pointer={{ color: "#006400" }}
+                pointer={{ color: "#333" }}
                 arc={{
                   subArcs: [
-                    { limit: 15, color: "#018786" },
-                    { limit: 25, color: "#8bc34a" },
-                    { limit: 35, color: "#fbc02d" },
-                    { limit: 50, color: "#006400" },
+                    { limit: 15, color: "#5cb85c" },
+                    { limit: 25, color: "#f0ad4e" },
+                    { limit: 35, color: "#d9534f" },
+                    { limit: 50, color: "#d9534f" },
                   ],
-                  width: 0.14,
+                  width: 0.2,
+                  padding: 0.005
                 }}
                 labels={{
                   valueLabel: {
                     formatTextValue: (v) => `${v} °C`,
-                    style: { fill: "#333", fontWeight: 700 },
+                    style: { fontSize: "20px", fill: "#333", fontWeight: "bold" },
                   },
                 }}
-                style={{ width: "100%", margin: "0 auto" }}
               />
             </MetricCard>
             <GraphCard title="Temperature" valueKey="temp" color="#e28c1e" />
           </div>
 
           {/* Level */}
-          <div style={{ display: "flex", gap: 20, height: "33%", minHeight: 200 }}>
-            <MetricCard icon={<Drop size={28} />} trend={levelTrend}>
+          <div className="metric-row">
+            <MetricCard icon={<Drop size={32} />} trend={levelTrend}>
               <LiquidGauge
                 value={levelValue}
                 min={0}
                 max={100}
-                width={110}
-                height={110}
-                waveStyle={{ fill: "#006400", opacity: 0.5 }}
+                width={120}
+                height={120}
+                waveStyle={{ fill: "#4a90e2" }}
                 textStyle={{ fill: "#333" }}
                 textRenderer={({ value }) => (
                   <tspan>
-                    <tspan style={{ fontWeight: 700 }}>{Math.round(value)}</tspan>
-                    <tspan style={{ fontSize: "0.7em" }}>%</tspan>
+                    <tspan style={{ fontWeight: 700, fontSize: "24px" }}>{Math.round(value)}</tspan>
+                    <tspan style={{ fontSize: "14px" }}>%</tspan>
                   </tspan>
                 )}
               />
@@ -430,29 +327,29 @@ export default function Dashboard() {
           </div>
 
           {/* Flow */}
-          <div style={{ display: "flex", gap: 20, height: "33%", minHeight: 200 }}>
-            <MetricCard icon={<Gauge size={28} />} trend={flowTrend}>
+          <div className="metric-row">
+            <MetricCard icon={<Gauge size={32} />} trend={flowTrend}>
               <GaugeComponent
                 type="semicircle"
                 minValue={0}
                 maxValue={100}
                 value={flowValue}
-                pointer={{ color: "#006400" }}
+                pointer={{ color: "#333" }}
                 arc={{
                   subArcs: [
-                    { limit: 20, color: "#EA4228" },
-                    { limit: 40, color: "#F5CD19" },
-                    { limit: 100, color: "#006400" },
+                    { limit: 20, color: "#d9534f" },
+                    { limit: 40, color: "#f0ad4e" },
+                    { limit: 100, color: "#5cb85c" },
                   ],
-                  width: 0.14,
+                  width: 0.2,
+                  padding: 0.005
                 }}
                 labels={{
                   valueLabel: {
                     formatTextValue: (v) => `${v} L/min`,
-                    style: { fill: "#333", fontWeight: 700 },
+                    style: { fontSize: "20px", fill: "#333", fontWeight: "bold" },
                   },
                 }}
-                style={{ width: "100%", margin: "0 auto" }}
               />
             </MetricCard>
             <GraphCard title="Flow Rate" valueKey="flow" color="#0487d9" />
